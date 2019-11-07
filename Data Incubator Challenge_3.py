@@ -8,13 +8,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+big_frame = pd.read_sas("C:/Users/Siyu/myproject/BRFSS_Depression/LLCP2017.XPT")
 
-big_frame = pd.read_sas("E:\LLCP2017.XPT")
-
-selected_features = big_frame[['_AGEG5YR',
+selected_features = big_frame[[
      'SEX',
      'EDUCA',
-     'VETERAN3',
      'FRUIT2',
      'FRUITJU2',
      'FVGREEN1',
@@ -36,7 +34,8 @@ total = processed_features.isnull().sum().sort_values(ascending=False)
 percent = (processed_features.isnull().sum()/processed_features.isnull().count()).sort_values(ascending=False)
 missing_data = pd.concat([total, percent], axis=1, keys=['Total', 'Percent'])
 
-#Age and Sex has no NAs,
+#Sex has no NAs, but the refused Sex could be majority = Female
+processed_features.loc[processed_features['SEX'] == 9, 'SEX'] = 2
 #Education, 6 NAs as 'Not asked or missing', could be imputed as 'Refused', 9
 processed_features['EDUCA'].fillna(9, inplace=True)
 #narrow the education to 4 categories, value 1 for not graduate High School or Unknown, 2 for graduateed High School, 3 for attended college or technical school, 4 for graduated from college or technical school. 
@@ -46,7 +45,7 @@ processed_features.loc[processed_features['EDUCA'] == 5, 'Education'] = 3
 processed_features.loc[processed_features['EDUCA'] == 6, 'Education'] = 4
 processed_features.loc[processed_features['EDUCA'] == 9, 'Education'] = 1
 #Veteran, 11 NAs as 'Not asked or missing', imputed as 'Don't know/Not Sure', 7
-processed_features['VETERAN3'].fillna(7, inplace=True)
+#processed_features['VETERAN3'].fillna(7, inplace=True)
 #Fruit, 25432 NAs as 'Not asked or missing', imputed as 'Don't know/Not Sure', 777
 processed_features['FRUIT2'].fillna(777, inplace=True)
 #Fruit Juice, 26571 NAs as 'Not asked or missing', imputed as 'Don't know/Not Sure', 777
@@ -62,14 +61,14 @@ processed_features['Diet'].fillna(2, inplace=True)
 processed_features.loc[(processed_features['EXEROFT1'] > 100) & (processed_features['EXEROFT1'] < 200), 'Exercise'] = 1
 processed_features.loc[(processed_features['EXEROFT1'] > 200) & (processed_features['EXEROFT1'] < 300), 'Exercise'] = 2
 processed_features['Exercise'].fillna(3, inplace=True)
-#Income, narrow to 4 categories, value 1 for less than $50,000, value 2 for $50,000 - $75,000, value 3 for greater than $75,000, value 4 for unknown
+#Income, narrow to 4 categories, value 1 for less than $50,000, value 2 for $50,000 - $75,000, value 3 for greater than $75,000, value 1 for unknown
 processed_features.loc[processed_features['INCOME2'] <= 6, 'Income'] = 1
 processed_features.loc[processed_features['INCOME2'] == 7, 'Income'] = 2
 processed_features.loc[processed_features['INCOME2'] == 8, 'Income'] = 3
-processed_features['Income'].fillna(4, inplace=True)
-#Marital, narrow to 2 categories, value 1 for married, value 2 for all other situations
+processed_features['Income'].fillna(1, inplace=True)
+#Marital, narrow to 2 categories, value 1 for married, value 0 for all other situations
 processed_features.loc[processed_features['MARITAL'] == 1, 'Married'] = 1
-processed_features['Married'].fillna(2, inplace=True)
+processed_features['Married'].fillna(0, inplace=True)
 #BMI, 36446 NAs, imputed with mean, narrow to 4 categories, value 1 for underweight, value 2 for normal weight, value 3 for overweight, value 4 for obese
 processed_features['_BMI5'].fillna(processed_features['_BMI5'].mean(), inplace=True)
 processed_features.loc[(processed_features['_BMI5'] < 1850), 'Build'] = 1
@@ -82,9 +81,14 @@ processed_features.loc[(processed_features['SMOKE100'] == 1) & (processed_featur
 processed_features.loc[(processed_features['SMOKE100'] == 1) & (processed_features['SMOKDAY2'] == 3), 'Smoke'] = 3
 processed_features.loc[(processed_features['SMOKE100'] == 2), 'Smoke'] = 4
 processed_features['Smoke'].fillna(3, inplace=True)
-#Alcohol, blood pressure has no NAs, cholesterol has 51571 NAs as 'Missing', imputed as 'No High Cholesterol'
-processed_features['_RFCHOL1'].fillna(1, inplace=True)
-#Depression, narrow to 2 categories, value 1 for yes, value 2 for all other situation
+#Alcohol, blood pressure has no NAs, but the missing value was 9, need to change to 0 
+processed_features.loc[(processed_features['_RFDRHV5'] == 9), '_RFDRHV5'] = 0
+processed_features.loc[(processed_features['_RFHYPE5'] == 9), '_RFHYPE5'] = 0
+#cholesterol has 51571 NAs as 'Missing', imputed as 'No High Cholesterol', that's 0 and change the High Cholesterol to 1.
+processed_features['_RFCHOL1'].fillna(0, inplace=True)
+processed_features.loc[(processed_features['_RFCHOL1'] == 1), '_RFCHOL1'] = 0
+processed_features.loc[(processed_features['_RFCHOL1'] == 2), '_RFCHOL1'] = 1
+#Depression, narrow to 2 categories, value 1 for yes, value 0 for all other situation
 processed_features.loc[(processed_features['ADDEPEV2'] == 1), 'Depression'] = 1
 processed_features['Depression'].fillna(0, inplace=True)
 
@@ -92,7 +96,6 @@ processed_features['Depression'].fillna(0, inplace=True)
 #Remove the raw data columns
 processed_features = processed_features[['SEX',
      'Education',
-     'VETERAN3',
      'Diet',
      'Exercise',
      'Income',
@@ -103,6 +106,7 @@ processed_features = processed_features[['SEX',
      '_RFCHOL1',
      '_RFHYPE5',
      'Depression']]
+
 #check correlation
 corrmat = processed_features.corr()
 f, ax = plt.subplots(figsize=(12, 9))
@@ -115,19 +119,31 @@ missing_data = pd.concat([total, percent], axis=1, keys=['Total', 'Percent'])
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-logreg = LogisticRegression()
+logreg = LogisticRegression(C=0.01, class_weight='balanced')
 
-logreg = LogisticRegression()
 scores_reg = []
-train, test = train_test_split(processed_features, test_size=0.1)
-X_train=train.loc[:,'SEX':'_RFHYPE5']
-y_train=train['Depression']
-X_test = test.loc[:,'SEX':'_RFHYPE5']
-y_test = test['Depression']
+X = processed_features.loc[:,'SEX':'_RFHYPE5']
+y = processed_features['Depression']
+
+from sklearn.preprocessing import OneHotEncoder
+enc = OneHotEncoder(handle_unknown='ignore')
+enc.fit(X)
+X = enc.transform(X).toarray()
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+from sklearn.model_selection import GridSearchCV
+search_space = [{'C': [0.001,0.01,0.1,1,10]}]
+# Create grid search 
+clf = GridSearchCV(logreg, search_space, cv=5, verbose=0).fit(X_train, y_train)
+# Best neighborhood size (k)
+clf.best_estimator_.get_params()['C']
+
+logreg = LogisticRegression(C=10, class_weight='balanced')
 logreg.fit(X_train, y_train)
 y_pred = logreg.predict(X_test)
 scores_reg.append(logreg.score(X_test, y_test))
-print('Accuracy of Logistic Regression on test set: {:.4f}'.format(scores_reg))
+#print('Accuracy of Logistic Regression on test set: {:.4f}'.format(scores_reg))
 
 from sklearn.metrics import confusion_matrix
 confusion_matrix = confusion_matrix(y_test, y_pred)
@@ -152,11 +168,8 @@ plt.legend(loc="lower right")
 plt.savefig('Log_ROC')
 plt.show()
 
-print(logreg.classes_)
+print(logreg.coef_)
 
-
-
-
-
-
-
+import pickle
+filename = 'finalized_model.pkl'
+pickle.dump(logreg, open(filename, 'wb'))
